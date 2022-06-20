@@ -462,3 +462,71 @@ func prepareOptions(options []Option, required []Option) []Option {
 	}
 	return res
 }
+
+// подготовка значения перез записью в БД. Превращает 0 или пустую строку в nil
+func VNull(v interface{}) interface{} {
+	switch d := v.(type) {
+	case int:
+		if d == 0 {
+			return nil
+		}
+		return d
+	case uint:
+		if d == 0 {
+			return nil
+		}
+		return d
+	case int8:
+		if d == 0 {
+			return nil
+		}
+		return d
+	case int16:
+		if d == 0 {
+			return nil
+		}
+		return d
+	case int32:
+		if d == 0 {
+			return nil
+		}
+		return d
+	case int64:
+		if d == 0 {
+			return nil
+		}
+		return d
+	case uint8:
+		if d == 0 {
+			return nil
+		}
+		return d
+	case uint16:
+		if d == 0 {
+			return nil
+		}
+		return d
+	case uint32:
+		if d == 0 {
+			return nil
+		}
+		return d
+	case uint64:
+		if d == 0 {
+			return nil
+		}
+		return d
+	case string:
+		if len(strings.TrimSpace(d)) == 0 {
+			return nil
+		}
+		return d
+	case []byte:
+		if len(d) == 0 {
+			return nil
+		}
+		return d
+	default:
+		return v
+	}
+}
