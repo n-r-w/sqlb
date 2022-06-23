@@ -338,7 +338,7 @@ func ToSql(v interface{}, options ...Option) (string, error) {
 			}
 
 		case time.Time:
-			val = "'" + v.Format("2006-01-02 15:04:05.000 -0700") + "'"
+			val = "'" + v.Format("2006-01-02 15:04:05.000000 -0700") + "'"
 
 		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 			val = fmt.Sprintf("%d", v)
