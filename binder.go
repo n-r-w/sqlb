@@ -18,7 +18,6 @@ type Option int
 const (
 	JsonPath = Option(iota)
 	Json
-	NoStringE // не добавлять E в начало строки
 )
 
 // Parser - parser for identifying variables of the form :var in an sql query
@@ -357,6 +356,12 @@ func ToSql(v interface{}, options ...Option) (string, error) {
 			}
 		case []byte:
 			val = "E'\\\\x" + hex.EncodeToString(v) + "'"
+		case json.RawMessage:
+			var err error
+			val, err = prepareString(string(v), Json), nil
+			if err != nil {
+				return "", err
+			}
 
 		default:
 			if slices.Contains(options, Json) {
@@ -364,7 +369,7 @@ func ToSql(v interface{}, options ...Option) (string, error) {
 				if err != nil {
 					return "", nerr.New(err, "can't parse json")
 				}
-				return prepareString(string(j), prepareOptions(options, []Option{NoStringE})...), nil
+				return prepareString(string(j), prepareOptions(options, []Option{Json})...), nil
 			}
 
 			val = strings.TrimSpace(fmt.Sprintf("%v", v))
@@ -396,15 +401,19 @@ func prepareString(s string, options ...Option) string {
 	prep := strings.ReplaceAll(s, "'", "\\'")
 
 	if slices.Contains(options, JsonPath) {
+		prep := strings.ReplaceAll(s, "\"", "\\\"")
 		return `"` + prep + `"`
-
 	}
 
-	if slices.Contains(options, NoStringE) {
+	if slices.Contains(options, Json) {
+		prep = strings.ReplaceAll(prep, "\"", "\\\"")
+	}
+
+	if len(prep) == 0 {
 		return prep
+	} else {
+		return "E'" + prep + "'"
 	}
-
-	return "E'" + prep + "'"
 }
 
 // Sql - get the result of substituting variables into a template
@@ -522,6 +531,11 @@ func VNull(v interface{}) interface{} {
 		}
 		return d
 	case []byte:
+		if len(d) == 0 {
+			return nil
+		}
+		return d
+	case json.RawMessage:
 		if len(d) == 0 {
 			return nil
 		}
