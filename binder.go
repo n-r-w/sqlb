@@ -362,6 +362,12 @@ func ToSql(v interface{}, options ...Option) (string, error) {
 			if err != nil {
 				return "", err
 			}
+		case *json.RawMessage:
+			var err error
+			val, err = prepareString(string(*v), Json), nil
+			if err != nil {
+				return "", err
+			}
 
 		default:
 			if slices.Contains(options, Json) {
@@ -537,6 +543,11 @@ func VNull(v interface{}) interface{} {
 		return d
 	case json.RawMessage:
 		if len(d) == 0 {
+			return nil
+		}
+		return d
+	case *json.RawMessage:
+		if len(*d) == 0 {
 			return nil
 		}
 		return d
