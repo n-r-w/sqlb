@@ -413,6 +413,7 @@ func prepareString(s string, options ...Option) string {
 
 	if slices.Contains(options, Json) {
 		prep = strings.ReplaceAll(prep, "\"", "\\\"")
+		prep = strings.ReplaceAll(prep, `\n`, `\\n`)
 	}
 
 	if len(prep) == 0 {
