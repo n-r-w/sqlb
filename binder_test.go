@@ -43,7 +43,7 @@ const (
 		/* comment :var */
 		SELECT field1, field2 
 		FROM table 
-		WHERE key1 = '2022-05-31 16:15:42.000 +0000' -- comment`
+		WHERE key1 = '2022-05-31 16:15:42.000234 +0000' -- comment`
 )
 
 func TestSqlBinderParser_Calculate(t *testing.T) {
