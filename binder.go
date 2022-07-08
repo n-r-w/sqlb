@@ -289,7 +289,7 @@ func (b *SqlBinder) Clear() {
 }
 
 // Bind - replace the format bind in the Sql string :bind to the value of the value variable
-func (b *SqlBinder) Bind(variable string, value interface{}, options ...Option) error {
+func (b *SqlBinder) Bind(variable string, value any, options ...Option) error {
 	if len(variable) == 0 {
 		return nerr.New("empty variable")
 	}
@@ -320,7 +320,7 @@ func (b *SqlBinder) Bind(variable string, value interface{}, options ...Option) 
 }
 
 // ToSql - convert any value to sql string
-func ToSql(v interface{}, options ...Option) (string, error) {
+func ToSql(v any, options ...Option) (string, error) {
 	var val string
 
 	if v != nil {
@@ -393,7 +393,7 @@ func ToSql(v interface{}, options ...Option) (string, error) {
 }
 
 // Bind - replace the format bind in the Sql string :bind to the value of the value variable
-func (b *SqlBinder) BindValues(values map[string]interface{}) error {
+func (b *SqlBinder) BindValues(values map[string]any) error {
 	for variable, value := range values {
 		if err := b.Bind(variable, value); err != nil {
 			return err
@@ -449,7 +449,7 @@ func (b *SqlBinder) ParcedVariables() []string {
 }
 
 // BindOne - replace the format bind in the Sql string :bind to the value of the value variable
-func BindOne(template string, variable string, value interface{}, key string) (string, error) {
+func BindOne(template string, variable string, value any, key string) (string, error) {
 	binder := NewBinder(template, key)
 	if err := binder.Bind(variable, value); err != nil {
 		return "", err
@@ -459,7 +459,7 @@ func BindOne(template string, variable string, value interface{}, key string) (s
 }
 
 // Bind - сразу биндит и генерит sql
-func Bind(template string, values map[string]interface{}, key string) (string, error) {
+func Bind(template string, values map[string]any, key string) (string, error) {
 	binder := NewBinder(template, key)
 	if err := binder.BindValues(values); err != nil {
 		return "", err
@@ -480,7 +480,7 @@ func prepareOptions(options []Option, required []Option) []Option {
 }
 
 // подготовка значения перез записью в БД. Превращает 0 или пустую строку в nil
-func VNull(v interface{}) interface{} {
+func VNull(v any) any {
 	switch d := v.(type) {
 	case int:
 		if d == 0 {

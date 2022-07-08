@@ -70,7 +70,7 @@ func TestSqlBinder_Sql(t *testing.T) {
 		name     string
 		template string
 		variable string
-		value    interface{}
+		value    any
 		result   string
 	}
 
