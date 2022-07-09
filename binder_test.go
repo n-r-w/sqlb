@@ -152,3 +152,47 @@ func TestSqlBinder_Sql(t *testing.T) {
 		}
 	}
 }
+
+// Кастомные типы данных
+func TestSqlBinder_BindTypes(t *testing.T) {
+	template := "SELECT * FROM table WHERE id=:id"
+
+	type MyString string
+	s := MyString("test")
+
+	sql, err := BindOne(template, "id", s, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := "SELECT * FROM table WHERE id=E'test'"
+	if sql != req {
+		t.Fatalf("%s, wants: %s", sql, req)
+	}
+
+	type MyInt int
+	i := MyInt(123)
+
+	sql, err = BindOne(template, "id", i, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req = "SELECT * FROM table WHERE id=123"
+	if sql != req {
+		t.Fatalf("%s, wants: %s", sql, req)
+	}
+
+	type MyFloat float64
+	f := MyFloat(123.45)
+
+	sql, err = BindOne(template, "id", f, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req = "SELECT * FROM table WHERE id=123.45"
+	if sql != req {
+		t.Fatalf("%s, wants: %s", sql, req)
+	}
+}

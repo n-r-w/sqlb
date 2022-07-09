@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -381,9 +383,20 @@ func ToSql(v any, options ...Option) (string, error) {
 				return prepareString(string(j), prepareOptions(options, []Option{Json})...), nil
 			}
 
-			val = strings.TrimSpace(fmt.Sprintf("%v", v))
-			if len(val) != 0 {
-				val = prepareString(val, options...)
+			// возможно это кастомный тип, который можно скастить
+			e := reflect.ValueOf(&v).Elem().Elem()
+			if e.CanInt() {
+				val = strconv.FormatInt(e.Int(), 10)
+			} else if e.CanUint() {
+				val = strconv.FormatUint(e.Uint(), 10)
+			} else if e.CanFloat() {
+				val = strconv.FormatFloat(e.Float(), 'f', -1, 64)
+			} else {
+				// ничего не помогло, считаем что это строка
+				val = strings.TrimSpace(fmt.Sprintf("%v", v))
+				if len(val) != 0 {
+					val = prepareString(val, options...)
+				}
 			}
 		}
 	}
