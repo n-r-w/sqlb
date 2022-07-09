@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/n-r-w/nerr"
 	"golang.org/x/exp/slices"
 )
@@ -368,6 +369,8 @@ func ToSql(v any, options ...Option) (string, error) {
 			if err != nil {
 				return "", err
 			}
+		case uuid.UUID:
+			val = v.String()
 
 		default:
 			if slices.Contains(options, Json) {
