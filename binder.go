@@ -372,7 +372,7 @@ func ToSql(v any, options ...Option) (string, error) {
 				return "", err
 			}
 		case uuid.UUID:
-			val = v.String()
+			val = "'" + v.String() + "'"
 
 		default:
 			if slices.Contains(options, Json) {
