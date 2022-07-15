@@ -358,7 +358,7 @@ func ToSql(v any, options ...Option) (string, error) {
 				val = "FALSE"
 			}
 		case []byte:
-			val = "E'\\\\x" + hex.EncodeToString(v) + "'"
+			val = `E'\\x` + hex.EncodeToString(v) + `'`
 		case json.RawMessage:
 			var err error
 			val, err = prepareString(string(v), Json), nil
@@ -420,22 +420,24 @@ func (b *SqlBinder) BindValues(values map[string]any) error {
 }
 
 func prepareString(s string, options ...Option) string {
-	prep := strings.ReplaceAll(s, "'", "\\'")
-
 	if slices.Contains(options, JsonPath) {
-		prep := strings.ReplaceAll(s, "\"", "\\\"")
+		prep := strings.ReplaceAll(s, `'`, `\'`)
+		prep = strings.ReplaceAll(prep, `"`, `\"`)
 		return `"` + prep + `"`
 	}
 
-	if slices.Contains(options, Json) {
-		prep = strings.ReplaceAll(prep, "\"", "\\\"")
-		prep = strings.ReplaceAll(prep, `\n`, `\\n`)
+	if len(s) == 0 {
+		return s
 	}
 
-	if len(prep) == 0 {
+	prep := strings.ReplaceAll(s, `\`, `\\`)
+	prep = strings.ReplaceAll(prep, `'`, `\'`)
+
+	if slices.Contains(options, Json) {
+		prep = `to_json(E'` + prep + `'::text)`
 		return prep
 	} else {
-		return "E'" + prep + "'"
+		return `E'` + prep + `'`
 	}
 }
 
