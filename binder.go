@@ -314,6 +314,7 @@ func (b *SqlBinder) Bind(variable string, value any) error {
 	return nil
 }
 
+// ToSql - convert any value to sql string for json_path query
 func ToJsonPath(v any) (string, error) {
 	if v == nil {
 		return `null`, nil

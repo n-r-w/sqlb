@@ -2,10 +2,7 @@ module github.com/n-r-w/sqlb
 
 go 1.18
 
-require (
-	github.com/n-r-w/nerr v1.0.8
-	golang.org/x/exp v0.0.0-20220613132600-b0d781184e0d
-)
+require github.com/n-r-w/nerr v1.1.0
 
 require (
 	github.com/google/uuid v1.3.0
