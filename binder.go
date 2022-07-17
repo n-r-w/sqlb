@@ -13,14 +13,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/n-r-w/nerr"
-	"golang.org/x/exp/slices"
-)
-
-type Option int
-
-const (
-	JsonPath = Option(iota)
-	Json
 )
 
 // Parser - parser for identifying variables of the form :var in an sql query
@@ -292,7 +284,7 @@ func (b *SqlBinder) Clear() {
 }
 
 // Bind - replace the format bind in the Sql string :bind to the value of the value variable
-func (b *SqlBinder) Bind(variable string, value any, options ...Option) error {
+func (b *SqlBinder) Bind(variable string, value any) error {
 	if len(variable) == 0 {
 		return nerr.New("empty variable")
 	}
@@ -312,7 +304,7 @@ func (b *SqlBinder) Bind(variable string, value any, options ...Option) error {
 		v = variable
 	}
 
-	val, err := ToSql(value, options...)
+	val, err := ToSql(value)
 	if err != nil {
 		return err
 	}
@@ -322,9 +314,38 @@ func (b *SqlBinder) Bind(variable string, value any, options ...Option) error {
 	return nil
 }
 
+func ToJsonPath(v any) (string, error) {
+	if v == nil {
+		return `null`, nil
+	}
+
+	sql, text, err := toSqlHelper(v, ``, false)
+	if err != nil {
+		return "", nerr.New(err)
+	}
+	if !text {
+		return sql, nil
+	}
+
+	if _, ok := v.(json.RawMessage); ok {
+		return sql, nil
+	}
+	if _, ok := v.(*json.RawMessage); ok {
+		return sql, nil
+	}
+
+	return `"` + sql + `"`, nil
+}
+
 // ToSql - convert any value to sql string
-func ToSql(v any, options ...Option) (string, error) {
+func ToSql(v any) (string, error) {
+	val, _, err := toSqlHelper(v, `'`, true)
+	return val, err
+}
+
+func toSqlHelper(v any, quote string, escape bool) (string, bool, error) {
 	var val string
+	isText := false
 
 	if v != nil {
 		switch v := v.(type) {
@@ -334,13 +355,15 @@ func ToSql(v any, options ...Option) (string, error) {
 				h := int(total / (60 * 60))
 				m := int(total/60) - h*60
 				s := total % 60
-				val = fmt.Sprintf("'%d:%d:%d'", h, m, s)
+				val = fmt.Sprintf("%s%d:%d:%d%s", quote, h, m, s, quote)
+				isText = true
 			} else {
-				return "", nerr.New(fmt.Sprintf("can't bind time.Duration, value: %v", v))
+				return "", false, nerr.New(fmt.Sprintf("can't bind time.Duration, value: %v", v))
 			}
 
 		case time.Time:
-			val = "'" + v.Format("2006-01-02 15:04:05.000000 -0700") + "'"
+			val = quote + v.Format("2006-01-02 15:04:05.000000 -0700") + quote
+			isText = true
 
 		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 			val = fmt.Sprintf("%d", v)
@@ -349,40 +372,48 @@ func ToSql(v any, options ...Option) (string, error) {
 		case string:
 			val = strings.TrimSpace(v)
 			if len(val) != 0 {
-				val = prepareString(val, options...)
+				val = prepareString(val, quote, escape)
 			}
+			isText = true
 		case bool:
 			if v {
-				val = "TRUE"
+				val = "true"
 			} else {
-				val = "FALSE"
+				val = "false"
 			}
 		case []byte:
-			val = `E'\\x` + hex.EncodeToString(v) + `'`
+			if escape {
+				val = `E'\\x` + hex.EncodeToString(v) + `'`
+			} else {
+				val = `'\\x` + hex.EncodeToString(v) + `'`
+			}
+			isText = true
 		case json.RawMessage:
 			var err error
-			val, err = prepareString(string(v), Json), nil
-			if err != nil {
-				return "", err
+			var conv []byte
+			conv, err = v.MarshalJSON()
+			if err == nil {
+				val, err = prepareString(string(conv), quote, escape), nil
 			}
+			if err != nil {
+				return "", false, err
+			}
+			isText = true
 		case *json.RawMessage:
 			var err error
-			val, err = prepareString(string(*v), Json), nil
+			var conv []byte
+			conv, err = v.MarshalJSON()
+			if err == nil {
+				val, err = prepareString(string(conv), quote, escape), nil
+			}
 			if err != nil {
-				return "", err
+				return "", false, err
 			}
+			isText = true
 		case uuid.UUID:
-			val = "'" + v.String() + "'"
-
+			val = quote + v.String() + quote
+			isText = true
 		default:
-			if slices.Contains(options, Json) {
-				j, err := json.Marshal(v)
-				if err != nil {
-					return "", nerr.New(err, "can't parse json")
-				}
-				return prepareString(string(j), prepareOptions(options, []Option{Json})...), nil
-			}
-
 			// возможно это кастомный тип, который можно скастить
 			e := reflect.ValueOf(&v).Elem().Elem()
 			if e.CanInt() {
@@ -395,17 +426,18 @@ func ToSql(v any, options ...Option) (string, error) {
 				// ничего не помогло, считаем что это строка
 				val = strings.TrimSpace(fmt.Sprintf("%v", v))
 				if len(val) != 0 {
-					val = prepareString(val, options...)
+					val = prepareString(val, quote, escape)
 				}
+				isText = true
 			}
 		}
 	}
 
 	if len(val) == 0 {
-		val = "NULL"
+		val = "null"
 	}
 
-	return val, nil
+	return val, isText, nil
 }
 
 // Bind - replace the format bind in the Sql string :bind to the value of the value variable
@@ -419,25 +451,17 @@ func (b *SqlBinder) BindValues(values map[string]any) error {
 	return nil
 }
 
-func prepareString(s string, options ...Option) string {
-	if slices.Contains(options, JsonPath) {
-		prep := strings.ReplaceAll(s, `'`, `\'`)
-		prep = strings.ReplaceAll(prep, `"`, `\"`)
-		return `"` + prep + `"`
-	}
-
+func prepareString(s string, quote string, escape bool) string {
 	if len(s) == 0 {
 		return s
 	}
 
 	prep := strings.ReplaceAll(s, `\`, `\\`)
 	prep = strings.ReplaceAll(prep, `'`, `\'`)
-
-	if slices.Contains(options, Json) {
-		prep = `to_json(E'` + prep + `'::text)`
-		return prep
+	if escape {
+		return `E` + quote + prep + quote
 	} else {
-		return `E'` + prep + `'`
+		return quote + prep + quote
 	}
 }
 
@@ -484,17 +508,6 @@ func Bind(template string, values map[string]any, key string) (string, error) {
 	}
 
 	return binder.Sql()
-}
-
-// prepareOptions - Оставить только те свойства, которые требуются (если они есть)
-func prepareOptions(options []Option, required []Option) []Option {
-	res := []Option{}
-	for _, v := range options {
-		if slices.Contains(required, v) {
-			res = append(res, v)
-		}
-	}
-	return res
 }
 
 // подготовка значения перез записью в БД. Превращает 0 или пустую строку в nil
